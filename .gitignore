@@ -185,3 +185,5 @@ fabric.properties
 
 #PyCharm files
 .idea/*.xml
+*.pyc
+__pycache__
