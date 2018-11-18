@@ -187,3 +187,4 @@ fabric.properties
 .idea/*.xml
 *.pyc
 __pycache__
+/static
