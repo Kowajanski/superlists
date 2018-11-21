@@ -188,3 +188,7 @@ fabric.properties
 *.pyc
 __pycache__
 /static
+*.iml
+.DS_Store
+.env
+
