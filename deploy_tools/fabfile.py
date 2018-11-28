@@ -4,9 +4,6 @@ from patchwork.files import exists, append
 from invoke.context import contextmanager
 from invoke import run as lrun
 
-
-#env.use_ssh_config=True
-
 REPO_URL='https://github.com/Kowajanski/superlists.git'
 
 @task
@@ -17,7 +14,7 @@ def deploy(c, username, sitename):
     with c.cd(site_folder ):
         _get_latest_source(c)
         _update_virtualenv(c)
-        _create_or_update_dotenv(c)
+        _create_or_update_dotenv(c, sitename=sitename)
         _update_static_files(c)
         _update_databases(c)
 
@@ -27,19 +24,19 @@ def _get_latest_source(c):
         c.run('git fetch')
     else:
         c.run('git clone {} .'.format(REPO_URL))
-    current_commit = lrun('git log -n 1 --format=%H', capture=True)
-    c.run('git reset --hard {}'.format(current_commit))
+    current_commit = lrun('git log -n 1 --format=%H')
+    c.run('git reset --hard {}'.format(current_commit.stdout.strip()))
 
 def _update_virtualenv(c):
-    if not exists(c,f'virtualenv/bin/pip'):
-        c.run(f'python3.6 -m venv virtualenv')
-    c.run(f'./virtualenv/bin/pip install -r requirements.txt')
+    if not exists(c,'virtualenv/bin/pip'):
+        c.run('python3.6 -m venv virtualenv')
+    c.run('./virtualenv/bin/pip install -r requirements.txt')
 
-def _create_or_update_dotenv(c):
+def _create_or_update_dotenv(c, sitename):
     append(c, '.env', 'DJANGO_DEBUG_FALSE=y')
-    append(c, '.env', f'SITENAME={env.host}')
+    append(c, '.env', 'SITENAME={}'.format(sitename))
     current_contents = c.run('cat .env')
-    if 'DJANGO_SECRET_KEY' not in current_contents:
+    if 'DJANGO_SECRET_KEY' not in current_contents.stdout.strip():
         new_secret = ''.join(random.SystemRandom().choices(
             'abcdefghijklmnopqrstuvwxyz0123456789', k=50
         ))
