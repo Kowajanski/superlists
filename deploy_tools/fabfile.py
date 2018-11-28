@@ -1,47 +1,52 @@
 import random
-from fabric.contrib.files import append, exists
-from fabric.api import cd, env, local, run
+from fabric2 import Connection, task
+from patchwork.files import exists, append
+from invoke.context import contextmanager
+from invoke import run as lrun
+
+
+#env.use_ssh_config=True
 
 REPO_URL='https://github.com/Kowajanski/superlists.git'
 
-def deploy():
-    site_folder = f'/home/{env.user}/sites/{env.host}'
-    run(f'mkdir -p {site_folder}')
-    with cd(site_folder):
-        _get_latest_source()
-        _update_virtualenv()
-        _create_or_update_dotenv()
-        _update_static_files()
-        _update_databases()
+@task
+def deploy(c, username, sitename):
+    site_folder = '/home/{}/sites/{}'.format(username, sitename)
+#    print(site_folder)
+    c.run('mkdir -p {}'.format(site_folder))
+    with c.cd(site_folder ):
+        _get_latest_source(c)
+        _update_virtualenv(c)
+        _create_or_update_dotenv(c)
+        _update_static_files(c)
+        _update_databases(c)
 
-def _get_latest_source():
-    if exists('.git'):
-        run('git fetch')
+def _get_latest_source(c):
+    c.run('pwd')
+    if exists(c,'.git'):
+        c.run('git fetch')
     else:
-        run(f'git clone {REPO_URL} .')
-    current_commit = local('git log -n 1 --format=%H', capture=True)
-    run(f'git reset --hard {current_commit}')
+        c.run('git clone {} .'.format(REPO_URL))
+    current_commit = lrun('git log -n 1 --format=%H', capture=True)
+    c.run('git reset --hard {}'.format(current_commit))
 
-def _update_virtualenv():
-    if not exists('virtualenv/bin/pip'):
-        run(f'python3.6 -m venv virtualenv')
-    run(f'./virtualenv/bin/pip install -r requirements.txt')
+def _update_virtualenv(c):
+    if not exists(c,f'virtualenv/bin/pip'):
+        c.run(f'python3.6 -m venv virtualenv')
+    c.run(f'./virtualenv/bin/pip install -r requirements.txt')
 
-def _create_or_update_dotenv():
-    append('.env', 'DJANGO_DEBUG_FALSE=y')
-    append('.env', f'SITENAME={env.host}')
-    current_contents = run(f'cat .env')
+def _create_or_update_dotenv(c):
+    append(c, '.env', 'DJANGO_DEBUG_FALSE=y')
+    append(c, '.env', f'SITENAME={env.host}')
+    current_contents = c.run('cat .env')
     if 'DJANGO_SECRET_KEY' not in current_contents:
         new_secret = ''.join(random.SystemRandom().choices(
             'abcdefghijklmnopqrstuvwxyz0123456789', k=50
         ))
-        append('.env', f'DJANGO_SECRET_KEY={new_secret}')
+        append(c, '.env', 'DJANGO_SECRET_KEY={}'.format(new_secret))
 
-def _update_static_files():
-    run(f'./virtualenv/bin/python manage.py collectstatic --noinput')
+def _update_static_files(c):
+    c.run('./virtualenv/bin/python manage.py collectstatic --noinput')
 
-def _update_databases():
-    run(f'./virtualenv/bin/python manage.py migrate --noinput')
-
-
-
+def _update_databases(c):
+    c.run('./virtualenv/bin/python manage.py migrate --noinput')
